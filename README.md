@@ -14,6 +14,7 @@ The 2D thresholding consists of 7 steps:
 
 ## Examples
 ```cpp
+#include "ComputeShader/CThresholding2D.h"
 cs::CThresholding2D T2D;
 void allstep_gpu_rt(int is2DOTSU)
 {
