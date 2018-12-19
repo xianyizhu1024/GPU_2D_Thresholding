@@ -3,7 +3,9 @@ The source code is implemented based on the Compute Shader, a shader stage in Op
 
 ## Examples
 bool keys[1000] = { false };
+
 cs::CThresholding2D T2D;
+
 void allstep_gpu_rt(int isOTSU)
 {
 	freopen("960_pure-GPU.txt", "a+", stdout);
@@ -76,4 +78,5 @@ void allstep_gpu_rt(int isOTSU)
 
 ## Dependencies
 GLEW 2.0.0 or above(http://glew.sourceforge.net/)
+
 GLFW 3.0.1 or above(https://www.glfw.org/)
