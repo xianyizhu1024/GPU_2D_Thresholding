@@ -2,6 +2,7 @@
 The source code is implemented based on the Compute Shader, a shader stage in OpenGL for general-purpose computing on graphics processing units (GPGPU).
 
 ## Examples
+'''C++
 void allstep_gpu_rt(int isOTSU)
 {
 	bool keys[1000] = { false };
@@ -74,6 +75,7 @@ void allstep_gpu_rt(int isOTSU)
 		}
 	}
 }
+'''
 
 ## Dependencies
 GLEW 2.0.0 or above(http://glew.sourceforge.net/)
