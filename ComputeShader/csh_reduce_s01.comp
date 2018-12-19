@@ -1,0 +1,56 @@
+#version 430 core
+layout( local_size_x=1,local_size_y=1024 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_criteria;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_most;
+layout ( rgba32f, binding = 2 ) uniform  image2D image_most_tmp;
+uniform int graylevel;
+uniform int stride;
+uniform int ncell;
+uniform int isTmp;
+shared vec4 tmp[1024];
+
+void main()
+{
+	ivec2 gridDim = ivec2(gl_NumWorkGroups.xy);
+	ivec2 blockIdx = ivec2(gl_WorkGroupID.xy);
+	
+	ivec2 blockDim = ivec2(gl_WorkGroupSize.xy);
+	ivec2 threadIdx = ivec2(gl_LocalInvocationID.xy);
+	
+	int bId = blockIdx.x + (blockIdx.y) * (gridDim.x);
+    int tId = bId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x; 
+
+	int tid = threadIdx.y;
+	
+	ivec2 pos;
+	pos.x = tId % graylevel;
+	pos.y = tId / graylevel;
+	
+	if (isTmp==1) 
+		tmp[tid] = imageLoad(image_criteria, pos );
+	else
+		tmp[tid] = imageLoad(image_most_tmp, pos );
+	barrier();
+	
+	
+	
+	int s,s2,s3,i;
+	for (s=1; s< ncell ; s=s2)	{
+		s2 = s*stride;
+		if(tid % s2 ==0){  
+			for (i=1,s3=s ; tid + s3 < ncell&& i<stride; i++, s3+=s){
+				if (tmp[tid].x < tmp[tid + s3].x)
+					tmp[tid] = tmp[tid + s3];
+			}
+		}
+		barrier();
+	}
+
+	
+	if (tid==0)	{
+		if (isTmp==1)
+			imageStore(image_most_tmp,ivec2(bId,0),tmp[tid]);
+		else
+			imageStore(image_most,ivec2(bId,0),tmp[tid]);
+	}
+}

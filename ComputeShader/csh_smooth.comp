@@ -1,0 +1,106 @@
+#version 430 core
+layout( local_size_x=16, local_size_y=16 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_pic;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_out;
+uniform int width_pic,height_pic,nearbyorder;
+shared float scanbox[16][16];
+
+int K =1; // radius
+void common_smooth()
+{
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	vec4  cur_clr =imageLoad(image_pic,pos);
+	float intensity ;
+	intensity = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;
+	
+	int k=K; // radius
+	int i,j,hp,wp;
+	float sum=.0f;
+	k =K;
+	for (i=-k;i<=k;i++)
+		{
+			for (j=-k;j<=k;j++)
+			{
+				hp = i + pos.y;
+				wp = j + pos.x;
+				hp = clamp(hp,0,height_pic-1);
+				wp = clamp(wp,0,width_pic-1);
+				cur_clr =imageLoad(image_pic,ivec2(wp,hp));
+				sum += 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;
+				
+			}
+		}
+	float ave = sum/(k*2+1)/(k*2+1);
+	imageStore(image_out,pos,vec4(intensity,ave,0,0));
+}
+
+bool isinbox(int w,int h)
+{
+	if (w>-1&&w<16 && h>-1&&h<16)
+		return true;
+	return false;
+}
+
+bool isinimage(int w,int h)
+{
+	if (w>-1&&w<width_pic && h>-1&&h<height_pic)
+		return true;
+	return false;
+}
+
+void shared_smooth()
+{
+		// Load into shared
+		ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+		vec4  cur_clr =imageLoad(image_pic,pos);
+		float intensity ;
+		//intensity = (cur_clr.x+cur_clr.y+cur_clr.z)/3.0;
+		intensity = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;
+		//intensity = cur_clr.x;
+		scanbox[gl_LocalInvocationID.y][gl_LocalInvocationID.x]  =  intensity;
+		barrier();
+
+		// Calculate average
+		int i,j,w,h,hp,wp,k=K;
+		vec4 nearby_clr;
+		float sum=.0f,nearby_intensity;
+		for (i=-k;i<=k;i++)
+		{
+			for (j=-k;j<=k;j++)
+			{
+				// h = clamp(i + int(gl_LocalInvocationID.y),0,16-1);
+				// w = clamp(j + int(gl_LocalInvocationID.x),0,16-1);
+				h = i + int(gl_LocalInvocationID.y);
+				w = j + int(gl_LocalInvocationID.x);
+				hp = i + int(gl_GlobalInvocationID.y);
+				wp = j + int(gl_GlobalInvocationID.x);
+
+				//  k == K, (2K+1)^2   
+				if (isinimage(wp,hp) && isinbox(w,h))
+				{
+					sum = sum +scanbox[h][w];
+				}
+				else
+				{
+					hp = clamp(hp,0,height_pic-1);
+					wp = clamp(wp,0,width_pic-1);
+					nearby_clr =imageLoad(image_pic,ivec2(wp,hp));
+					nearby_intensity =  0.2989 * nearby_clr.x + 0.5870 * nearby_clr.y + 0.1140 * nearby_clr.z;
+					sum = sum + nearby_intensity;
+				}			
+			}
+		}
+		float ave =sum / (2*k+1) / (2*k+1);
+		imageStore(image_out,pos,vec4(intensity,ave,0,0));	
+}
+void main()
+{	
+	if ( gl_GlobalInvocationID.x <width_pic && gl_GlobalInvocationID.y< height_pic)
+	{
+		K = nearbyorder;			
+		//common_smooth();
+		shared_smooth();
+	}	
+}
+
+

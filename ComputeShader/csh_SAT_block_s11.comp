@@ -1,0 +1,64 @@
+#version 430 core
+layout( local_size_x=1,local_size_y=32 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_SATa;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_SATc;
+layout ( rgba32f, binding = 2 ) uniform  image2D image_SATb;
+uniform int graylevel;
+int ncell=32;
+shared vec4 sums[32 ][32 ];
+
+void main()
+{
+	ivec2 gridDim = ivec2(gl_NumWorkGroups.xy);
+	ivec2 blockIdx = ivec2(gl_WorkGroupID.xy);
+	
+	ivec2 blockDim = ivec2(gl_WorkGroupSize.xy);
+	ivec2 threadIdx = ivec2(gl_LocalInvocationID.xy);
+	
+	int bId = blockIdx.x + (blockIdx.y) * (gridDim.x);
+    int tId = bId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x; 
+	
+	int k = graylevel / ncell;
+	ivec2 leftDown = ivec2( ivec2( bId / k, bId%k) * ivec2(ncell,ncell)),curPos;
+	
+	int tid = threadIdx.y;
+	// step 1 : Intra-block summation
+	// read into shared
+	int i,j;
+	vec4 val;
+	for (i=0; i< ncell;i++){
+		curPos = leftDown + ivec2(i,tid);
+		val  = imageLoad(image_SATa,curPos);
+		sums[tid][i] = val;
+	}
+	barrier();
+	
+	// row Sum, and colum Sum
+	vec4 rSum = vec4(.0f);
+	for (i=0; i< ncell;i++){
+		rSum = rSum + sums[tid][i];	
+	}
+	curPos = leftDown + ivec2(tid,0);
+	imageStore(image_SATc,curPos,rSum);
+	barrier();
+	
+	vec4 cSum= vec4(.0f);
+	for (i=0; i< ncell;i++){
+		cSum = cSum + sums[i][tid];
+		sums[i][tid] = cSum;
+	}	
+	curPos = leftDown + ivec2(tid,1);
+	imageStore(image_SATc,curPos,cSum);
+	barrier();
+	
+	if (tid==0)
+	{
+		vec4 Sum= vec4(.0f);
+		for (i=0; i< ncell;i++){
+			Sum = Sum + sums[ncell-1][i];
+		}
+		
+		curPos = leftDown + ivec2(0,2);
+		imageStore(image_SATc,curPos,Sum);
+	}
+}

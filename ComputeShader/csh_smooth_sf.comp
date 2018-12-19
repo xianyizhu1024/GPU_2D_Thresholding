@@ -1,0 +1,160 @@
+#version 430 core
+//ø…∑÷¿Îµƒ¬À≤®
+
+layout( local_size_x=20, local_size_y=20 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_pic;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_out;
+uniform int width_pic,height_pic,nearbyorder;
+uniform bool isRow;
+shared float scanline[400];
+int K =1; 
+uint N_THREAD = gl_WorkGroupSize.x * gl_WorkGroupSize.y; 
+void sf_ssmooth_column()
+{
+	uint y_l = gl_LocalInvocationIndex;
+	uint y_g = gl_WorkGroupID.y*N_THREAD + gl_LocalInvocationIndex ;
+	if (gl_WorkGroupID.x < width_pic &&  y_g < height_pic)
+	{
+		ivec2 pos = ivec2(gl_WorkGroupID.x, y_g);
+		vec4  cur_clr =imageLoad(image_pic,pos);  //intensity,ave
+		float intensity = cur_clr.x;
+		scanline[y_l] = cur_clr.y;  // ave
+		barrier();
+		
+		int k= K;
+		k=K;
+		int i,j,hp,wp;
+		float sum=.0f;
+		for (i=-k;i<=k;i++)
+		{
+			float t1;
+			int y_l2 = int(i + y_l);
+			if  (y_l2>=0 && y_l2< N_THREAD)
+			{	t1 =scanline[y_l2];}
+			else
+			{
+				int y_g2 = int(i + y_g);
+				y_g2 = clamp(y_g2,0,height_pic-1);
+				cur_clr =imageLoad(image_pic,ivec2(gl_WorkGroupID.x, y_g2));  //intensity,ave
+				t1 = cur_clr.y;
+			}
+				
+			sum += t1;
+		}
+		float ave = sum/(k*2+1);
+		imageStore(image_out,pos,vec4(intensity,ave,0,0));
+	}
+}
+
+void sf_ssmooth_row()
+{
+	uint x_l = gl_LocalInvocationIndex;
+	uint x_g = gl_WorkGroupID.y*N_THREAD + gl_LocalInvocationIndex ;
+	if (gl_WorkGroupID.x < height_pic && x_g < width_pic)
+	{
+		ivec2 pos = ivec2(x_g,gl_WorkGroupID.x);
+		vec4  cur_clr =imageLoad(image_pic,pos);  // rgba
+		float intensity ;
+		intensity = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;  // gray
+		scanline[x_l] = intensity;
+		barrier();
+		
+		int k= K;
+		k=K;
+		int i,j,wp;
+		float sum=.0f;
+		for (i=-k;i<=k;i++)
+		{
+			int x_l2 = int(i + x_l);  
+			if (x_l2>=0 && x_l2< N_THREAD)
+			{cur_clr.x =scanline[x_l2];}
+			else	
+			{
+				int x_g2 = int(i + x_g);
+				x_g2 = clamp(x_g2,0,width_pic-1);
+				cur_clr =imageLoad(image_pic,ivec2(x_g2,gl_WorkGroupID.x));  // rgba
+				cur_clr.x = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;  // gray
+			}
+			
+			
+			sum += cur_clr.x;
+		}
+		float ave = sum/(k*2+1);
+		imageStore(image_out,pos,vec4(intensity,ave,0,0));
+	}
+}
+
+/* void sf_ssmooth_column()
+{
+	uint y_l = gl_LocalInvocationIndex;
+	uint y_g = gl_WorkGroupID.y*N_THREAD + gl_LocalInvocationIndex ;
+	if (gl_WorkGroupID.x < width_pic &&  y_g < height_pic)
+	{
+		ivec2 pos = ivec2(gl_WorkGroupID.x, y_g);
+		vec4  cur_clr =imageLoad(image_pic,pos);  //intensity,ave
+		float intensity = cur_clr.x;
+		
+		int k= K;
+		k=K;
+		int i,j,hp,wp;
+		float sum=.0f;
+		for (i=-k;i<=k;i++)
+		{
+			float t1;	
+			int y_g2 = int(i + y_g);
+			y_g2 = clamp(y_g2,0,height_pic-1);
+			cur_clr =imageLoad(image_pic,ivec2(gl_WorkGroupID.x, y_g2));  //intensity,ave
+			t1 = cur_clr.y;
+				
+			sum += t1;
+		}
+		float ave = sum/(k*2+1);
+		imageStore(image_out,pos,vec4(intensity,ave,0,0));
+	}
+}
+
+void sf_ssmooth_row()
+{
+	uint x_l = gl_LocalInvocationIndex;
+	uint x_g = gl_WorkGroupID.y*N_THREAD + gl_LocalInvocationIndex ;
+	if (gl_WorkGroupID.x < height_pic && x_g < width_pic)
+	{
+		ivec2 pos = ivec2(x_g,gl_WorkGroupID.x);
+		vec4  cur_clr =imageLoad(image_pic,pos);  // rgba
+		float intensity ;
+		intensity = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;  // gray
+
+		
+		int k= K;
+		k=K;
+		int i,j,wp;
+		float sum=.0f;
+		for (i=-k;i<=k;i++)
+		{
+			
+			int x_g2 = int(i + x_g);
+			x_g2 = clamp(x_g2,0,width_pic-1);
+			cur_clr =imageLoad(image_pic,ivec2(x_g2,gl_WorkGroupID.x));  // rgba
+			cur_clr.x = 0.2989 * cur_clr.x + 0.5870 * cur_clr.y + 0.1140 * cur_clr.z;  // gray
+			sum += cur_clr.x;
+		}
+		float ave = sum/(k*2+1);
+		imageStore(image_out,pos,vec4(intensity,ave,0,0));
+	}
+}
+
+ */
+void main()
+{
+	
+	K = nearbyorder;
+	if (isRow)	{
+		sf_ssmooth_row();
+	}
+	else	{
+		sf_ssmooth_column();
+	}
+			
+}
+
+

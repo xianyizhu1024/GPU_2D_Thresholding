@@ -1,0 +1,44 @@
+#version 430 core
+layout( local_size_x=16,local_size_y=16 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_criteria;
+layout ( rgba32f, binding = 2 ) uniform  image2D image_SATb;
+uniform int graylevel;
+uniform int isOTSU;
+void main()
+{
+	// compute criteria	 
+	
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	vec4 dat  = imageLoad(image_SATb,pos);
+	vec4 rightdown  = imageLoad(image_SATb,ivec2(graylevel-1,graylevel-1));
+	
+	float PA, XA, XL,YA,YL ,  HA,HL;
+	float phi=.0f,delta=.0f;
+	PA = dat.r;
+	XA = dat.g;
+	YA = dat.b;
+	XL = rightdown.g;
+	YL = rightdown.b;
+	
+	HA = dat.a;
+	HL = rightdown.a;
+
+	if (PA>.0f && PA<1.0f)
+	{
+		if (isOTSU==1){
+			delta = ( (PA*XL-XA) *(PA*XL-XA) + (PA*YL-YA)*(PA*YL-YA))/ ((1-PA)*PA);
+		}
+		else{
+			phi = log2((1-PA)*PA) + HA / PA +  (HL-HA) /(1-PA);
+		}	
+	}
+	
+	vec4 ret;
+	if (isOTSU==1){
+		ret = vec4(delta,float(pos.x),float(pos.y),phi);
+	}
+	else{
+		ret = vec4(phi,float(pos.x),float(pos.y),delta);	
+	}
+	imageStore(image_criteria,pos,ret);
+}

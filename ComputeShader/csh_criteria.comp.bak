@@ -1,0 +1,34 @@
+#version 430 core
+layout( local_size_x=256,local_size_y=1 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_SATa;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_criteria;
+void main()
+{
+	// 生成 criteria	 →  2017年3月19日 15:36:56
+	
+	ivec2 pos = ivec2(gl_GlobalInvocationID.yx);
+	vec4 dat  = imageLoad(image_SATa,pos);
+	vec4 rightdown  = imageLoad(image_SATa,ivec2(255,255));
+	
+	float PA, XA, XL,YA,YL ,  HA,HL;
+	float phi=.0f,delta=.0f;
+	PA = dat.x;
+	XA = dat.y;
+	YA = dat.z;
+	HA = dat.w;
+
+	XL = rightdown.y;
+	YL = rightdown.z;
+	HL = rightdown.w;
+
+	if (PA>.0f && PA<1.0f)
+		phi = log2((1-PA)*PA) + HA / PA + (1-PA) / (HL-HA);
+
+	if (PA>.0f && PA<1.0f)
+		delta =  (PA*XL-XA) *(PA*XL-XA) + (PA*YL-YA)*(PA*YL-YA)/ ((1-PA)*PA)
+	
+	imageStore(
+		image_criteria,
+		pos,
+		vec4(delta,float(pos.x),float(pos.y),phi));
+}

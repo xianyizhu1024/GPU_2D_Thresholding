@@ -1,0 +1,74 @@
+#version 430 core
+layout( local_size_x=1,local_size_y=32 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_SATa;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_SATc;
+layout ( rgba32f, binding = 2 ) uniform  image2D image_SATb;
+uniform int graylevel;
+int ncell=32;
+shared vec4 sums[32 ][32 ];
+void main()
+{
+	ivec2 blockDim = ivec2(gl_WorkGroupSize.xy);
+	ivec2 blockIdx = ivec2(gl_WorkGroupID.xy);
+	ivec2 threadIdx = ivec2(gl_LocalInvocationID.xy);
+	
+	ivec2 leftTop = ivec2( blockIdx * ncell),curPos;
+	int tid = threadIdx.y;
+	// step 1&2 : Intra-block summation;  Summation and transfer
+	// read into shared
+	int i,j;
+	vec4 val;
+	for (i=0; i< ncell;i++){
+		curPos = leftTop + ivec2(tid,i);
+		val  = imageLoad(image_SATa,curPos);
+		sums[tid][i] = val;
+	}
+	barrier();
+	
+	// row Sum, and colum Sum, and all Sum
+	vec4 rSum = vec4(.0f);
+	for (i=0; i< ncell;i++){
+		rSum = rSum + sums[tid][i];	
+	}
+	val = imageLoad(image_SATa,leftTop + ivec2(tid,ncell),);
+	
+	vec4 cSum= vec4(.0f);
+	for (i=0; i< ncell;i++){
+		cSum = cSum + sums[i][tid];
+	}	
+	
+	imageAtomicAdd(image_SATa,leftTop + ivec2(ncell,ncell),cSum);	
+	imageAtomicAdd(image_SATa,leftTop + ivec2(tid,ncell)  ,rSum);	
+	imageAtomicAdd(image_SATa,leftTop + ivec2(ncell,tid)  ,cSum);	
+	memoryBarrier();
+	barrier();
+	
+	// step 3 : Intra-block summation
+	val  = imageLoad(image_SATa,leftTop + ivec2(tid,0));
+	sums[tid][0] = val;
+	val  = imageLoad(image_SATa,leftTop + ivec2(0,tid));
+	sums[0][tid] = val;
+	barrier();
+	
+	// row Sum
+	rSum = vec4(.0f);
+	for (i=0; i< ncell;i++){
+		rSum = rSum + sums[tid][i];
+		sums[tid][i] = rSum;
+	}
+	barrier();
+	// colum Sum
+	cSum = vec4(.0f);
+	for (i=0; i< ncell;i++){
+		cSum = cSum + sums[i][tid];
+		sums[i][tid] = cSum;
+	}
+	barrier();
+	// store into global
+	for (i=0; i< ncell;i++){
+		val = sums[i][tid];
+		curPos = leftTop + ivec2(i,tid);
+		imageStore(image_SATb,curPos,val);
+	}
+	
+}

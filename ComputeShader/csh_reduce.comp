@@ -1,0 +1,61 @@
+#version 430 core
+layout( local_size_x=16,local_size_y=16 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_criteria;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_most;
+uniform int threads1;
+void main()
+{
+	if ( gl_GlobalInvocationID.x <threads1 && gl_GlobalInvocationID.y< threads1)
+	{
+		bool is1channel=true;
+		ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+		vec4 a,b,c,d,ret1,ret2;
+		a=imageLoad(image_criteria,pos*2);	
+		b=imageLoad(image_criteria,pos*2+ivec2(1,0));	
+		c=imageLoad(image_criteria,pos*2+ivec2(1,1));
+		d=imageLoad(image_criteria,pos*2+ivec2(0,1));	
+		ret1 = b; ret2= d;
+		if (is1channel)   // otsu
+		{
+			if (a.x>b.x)
+				 ret1= a;
+			if (c.x>d.x)
+				ret2 =c;
+			if (ret2.x > ret1.x)
+				ret1= ret2;
+		}
+		else   //entropy-based
+		{
+			if (a.w>b.w)
+				 ret1= a;
+			if (c.w>d.w)
+				ret2 =c;
+			if (ret2.w > ret1.w)
+				ret1= ret2;
+		}
+		
+		imageStore(image_most,pos,ret1);
+	}
+
+	// 生成 reduce	 →  2017年4月5日 10:32:32
+	//bool isotsu=true;
+	//ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	//int i,idx=-1;
+	//vec4 tmp=vec4(-10000,0,0,-10000000);
+	//vec4 cur;
+	//idx = pos.x*32+pos.y;
+	//for (i=0;i<graylevel;i++)
+	//{
+	//	cur=imageLoad(image_criteria,ivec2(idx,i));
+	//	if (isotsu)
+	//	{
+	//		tmp = (cur.x>tmp.x?cur:tmp);
+	//	}
+	//	else
+	//	{
+	//		tmp = (cur.w>tmp.w?cur:tmp);	
+	//	}
+	//}
+	//imageStore(image_most,ivec2(idx,0),tmp);
+
+}

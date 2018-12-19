@@ -1,0 +1,44 @@
+#version 430 core
+layout( local_size_x=1,local_size_y=32 ) in;
+layout ( rgba32f, binding = 0 ) uniform  image2D image_SATa;
+layout ( rgba32f, binding = 1 ) uniform  image2D image_SATc;
+layout ( rgba32f, binding = 2 ) uniform  image2D image_SATb;
+uniform int graylevel;
+
+void main()
+{
+	// 生成 SAT a	 →  2017年3月18日 21:19:13
+	// 参考ICPP 2014的 SAT
+	int i,j;
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	i = pos.x*32 + pos.y ;
+	// 水平  一个线程一行
+	vec4 si  = imageLoad(image_SATa,ivec2(0,i));
+	imageStore(image_SATc,ivec2(0,i),si);
+	vec4 aji;
+	for (j=1;j<graylevel;j++)
+	{	
+		aji = imageLoad(image_SATa,ivec2(j,i));
+		si = si + aji;
+		imageStore(image_SATc,ivec2(j,i),si);
+	}
+	
+	memoryBarrier();
+	barrier();
+
+	// 竖直	一个线程一列
+	si  = imageLoad(image_SATc,ivec2(i,0));
+	imageStore(image_SATb,ivec2(i,0),si);
+	vec4 aij;
+	for (j=1;j<graylevel;j++)
+	{	
+		aij = imageLoad(image_SATc,ivec2(i,j));
+		si = si + aij;
+		imageStore(image_SATb,ivec2(i,j),si);	
+	}
+	
+	
+	
+}
+
+

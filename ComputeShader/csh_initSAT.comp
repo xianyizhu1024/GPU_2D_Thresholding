@@ -1,0 +1,29 @@
+#version 430 core
+layout( local_size_x=16, local_size_y=16 ) in;   
+
+layout ( rgba32f, binding = 0 ) uniform  image2D image_SATa;
+layout ( r32ui,binding = 3) uniform  uimage2D image_bins2d;
+uniform int num_pixel;
+uniform int isOTSU;
+void main()
+{
+	float pij, ipij, jpij ,  pij_logpij;
+	
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	float fij  = float(imageLoad(image_bins2d,pos).x);
+	
+	pij  = fij * 1.0 / num_pixel; 
+	ipij  = pos.x * fij * 1.0 / num_pixel; 
+	jpij  = pos.y * fij * 1.0 / num_pixel;
+	pij_logpij = .0f; 
+	
+	if (fij/num_pixel>.0000001f && isOTSU==0)
+		pij_logpij  = 0 - (fij  / num_pixel) * log2(fij  / num_pixel); 
+	
+	vec4 ret=vec4(pij,ipij,jpij,pij_logpij);
+	
+	imageStore(image_SATa,pos,ret);
+
+}
+
+

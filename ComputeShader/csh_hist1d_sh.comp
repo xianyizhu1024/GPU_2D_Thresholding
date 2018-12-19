@@ -1,0 +1,74 @@
+#version 430 core
+layout( local_size_x=16, local_size_y=16 ) in;
+
+layout ( rgba32f, binding = 0 ) uniform  image2D image_pic;
+layout ( r32ui,binding = 1) uniform  uimage2D image_bins;
+//layout ( rgba32f, binding = 2 ) uniform  image2D image_out;
+layout ( r32ui,binding = 3) uniform  uimage2D image_bins2d;
+uniform int width_pic,height_pic;
+uniform bool is1d;
+uniform int grayscale;
+int L=256; // 灰度级 (d)
+shared  uint bins2d_shared[256][48]; // d,h
+
+void main()
+{
+	// 手动设置
+	uint d=256,h=48,w=43,s=42,nthread=256; 
+	
+	// step 1:  初始化 bins2d_shared
+	uint i,ntime,x,y,y1,val,offset;
+	uint index,idx = gl_LocalInvocationIndex;
+	ntime = uint( ceil(d*h/nthread));
+	for (i=0;i<ntime;i++){
+		index = idx + i*nthread;
+		x = uint(index/h);
+		y = index - x*h;
+		if (x< d && y<h)
+			bins2d_shared[x][y]=0;
+	}
+	barrier();	
+	
+ 	// step 2:  计数
+	if ( gl_GlobalInvocationID.x <width_pic && gl_GlobalInvocationID.y< height_pic)
+	{
+		L = grayscale;
+		ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+		vec4	ccl =imageLoad(image_pic,p);
+		
+		x = uint(ccl.x* ( L - 1 ) +0.5);
+		y = uint(ccl.y*( L - 1 )+0.5);
+		offset = uint(x/w)*s;
+		// 在shared中计数
+		if (y>=offset && y<=offset + h){
+			y1 = y-	offset;
+			//进位
+			//if (bins2d_shared[x][y1]==0xffff){ 
+			//	val = uint( atomicExchange(bins2d_shared[x][y1],0));
+			//	imageAtomicAdd(image_bins2d,ivec2(x,y),val);
+			//}
+			atomicAdd(bins2d_shared[x][y1],1);
+		}
+		// 在global中计数
+		else{
+			imageAtomicAdd(image_bins2d,ivec2(x,y),1);	
+		}
+	}
+	barrier();
+	
+	// step 3:  global同步
+	for (i=0;i<ntime;i++){
+		index = idx + i*nthread;
+		x = uint(index/h);
+		y1 = index - x*h;
+		offset = uint(x/w)*s;
+		y = y1+ offset;
+		if (x< d && y1<h){
+			val = bins2d_shared[x][y1];
+			imageAtomicAdd(image_bins2d,ivec2(x,y),val);
+		}
+			
+	}
+}
+
+
