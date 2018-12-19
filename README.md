@@ -2,6 +2,15 @@
 
 ## Introduction
 The source code is implemented based on the Compute Shader, a shader stage in OpenGL for general-purpose computing on graphics processing units (GPGPU).
+  
+The 2D thresholding consists of 7 steps: 
+- step 1 is smoothing
+- step 2 is 2D histogram generation,
+- step 3 is auxiliary data initialization
+- step 4 is summed area table generation
+- step 5 is criteria calculation,
+- step 6 is optimal threshold searching
+- step 7 is binarization
 
 ## Examples
 ```cpp
