@@ -14,11 +14,10 @@ The 2D thresholding consists of 7 steps:
 
 ## Examples
 ```cpp
-void allstep_gpu_rt(int isOTSU)
+cs::CThresholding2D T2D;
+void allstep_gpu_rt(int is2DOTSU)
 {
 	bool keys[1000] = { false };
-	cs::CThresholding2D T2D;
-	
 	freopen("960_pure-GPU.txt", "a+", stdout);
 	printf("\n");
 	printf("pure GPU running time\n(\n 1: sp\n 2: hist2D\n 3: sat init\n 4: sat\n 5: compute criteria\n 6: reduce\n 7: binarize\n)\n");
@@ -51,7 +50,7 @@ void allstep_gpu_rt(int isOTSU)
 				}
 				glQueryCounter(query[2], GL_TIMESTAMP);
 				for (int i = 1; i < nf; i++){
-					T2D.init_sat(isOTSU);
+					T2D.init_sat(is2DOTSU);
 				}
 				glQueryCounter(query[3], GL_TIMESTAMP);
 				////			//T2D.sat();
@@ -60,7 +59,7 @@ void allstep_gpu_rt(int isOTSU)
 				}
 				glQueryCounter(query[4], GL_TIMESTAMP);
 				for (int i = 1; i < nf; i++){
-					T2D.cal_criteria(isOTSU);
+					T2D.cal_criteria(is2DOTSU);
 				}
 				glQueryCounter(query[5], GL_TIMESTAMP);
 				////					//T2D.select_most_stride(2);
