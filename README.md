@@ -1,4 +1,4 @@
-# An implementation of GPU Accelerated 2D OTSU and 2D Entropy-based Thresholding
+# An Implementation of GPU Accelerated 2D OTSU and 2D Entropy-based Thresholding
 
 ## Introduction
 The source code is implemented based on the Compute Shader, a shader stage in OpenGL for general-purpose computing on graphics processing units (GPGPU).
